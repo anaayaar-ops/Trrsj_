@@ -9,96 +9,75 @@ const settings = {
     identity: process.env.U_MAIL,
     secret: process.env.U_PASS,
     targetBotId: 82727814,
-    targetPlayerId: 51660277,
-    gameCommand: "!او خاص 51660277",
-    moves: ["2", "5", "8"],
+    gameCommand: "!او خاص 51660277", // أو الأمر الخاص بالبوت المساعد
+    moves: ["2", "5", "8"], // أو ["1", "3", "7"] للمساعد
     currentIndex: 0,
-    // إعدادات التوقيت
-    isRunning: true, // حالة البوت الحالية
-    workDuration: 52 * 60 * 1000, // 52 دقيقة بالمللي ثانية
-    restDuration: 8 * 60 * 1000   // 8 دقائق بالمللي ثانية
+    isRunning: true,
+    isWaiting: false, // القفل لمنع التكرار
+    workDuration: 52 * 60 * 1000,
+    restDuration: 8 * 60 * 1000
 };
 
 const service = new WOLF();
 
-// وظيفة إدارة وقت العمل والراحة
+// نفس وظيفة manageWorkCycle السابقة...
 const manageWorkCycle = () => {
     if (settings.isRunning) {
-        // إذا كان يعمل، سنوقفه بعد 52 دقيقة
         setTimeout(() => {
             settings.isRunning = false;
-            console.log("⏸️ بدأت فترة الراحة (8 دقائق)... البوت متوقف الآن.");
-            manageWorkCycle(); // استدعاء الوظيفة لجدولة العودة للعمل
+            manageWorkCycle();
         }, settings.workDuration);
     } else {
-        // إذا كان في استراحة، سنعيده للعمل بعد 8 دقائق
         setTimeout(() => {
             settings.isRunning = true;
-            console.log("🚀 انتهت الاستراحة! العودة للعمل لـ 52 دقيقة.");
-            // إرسال أمر بدء جديد عند العودة من الاستراحة
             service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-            manageWorkCycle(); // استدعاء الوظيفة لجدولة الاستراحة القادمة
+            manageWorkCycle();
         }, settings.restDuration);
     }
 };
 
-service.on('ready', async () => {
-    console.log(`✅ البوت متصل: ${service.currentSubscriber.nickname}`);
-    console.log("⏱️ نظام تجنب السبام مفعل: 52 دقيقة عمل / 8 دقائق راحة.");
-    
-    // بدء اللعبة لأول مرة
-    await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-    
-    // بدء عداد الدورة (العمل والراحة)
+service.on('ready', () => {
+    console.log(`✅ المتصل: ${service.currentSubscriber.nickname}`);
+    service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
     manageWorkCycle();
 });
 
 service.on('privateMessage', async (message) => {
-    // إذا كان البوت في فترة الراحة، يتجاهل الرسائل تماماً
-    if (!settings.isRunning) return;
-
-    if (message.sourceSubscriberId !== settings.targetBotId) return;
+    if (!settings.isRunning || message.sourceSubscriberId !== settings.targetBotId) return;
 
     const text = (message.body || "").toLowerCase();
 
-    // رصد حالة انتهاء اللعبة
-    const gameEnded = text.includes("won") || text.includes("lost") || text.includes("draw") || 
-                      text.includes("فاز") || text.includes("خسر") || text.includes("تعادل") || text.includes("انتهت");
-
-    if (gameEnded) {
+    // رصد انتهاء اللعبة وتصفير القفل والمؤشر
+    if (text.includes("won") || text.includes("lost") || text.includes("draw") || text.includes("انتهت")) {
         settings.currentIndex = 0;
-        
-        setTimeout(async () => {
-            // نتحقق مرة أخرى إذا كان لا يزال في وقت العمل قبل إرسال الطلب الجديد
-            if (settings.isRunning) {
-                try {
-                    await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-                    console.log(`🔄 إعادة طلب اللعبة...`);
-                } catch (err) {
-                    console.error("❌ فشل إعادة الطلب:", err.message);
-                }
-            }
+        settings.isWaiting = false; // فك القفل للجولة الجديدة
+        setTimeout(() => {
+            if (settings.isRunning) service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
         }, 5000);
         return;
     }
 
-    // رصد الدور (Your Turn)
-    const isMyTurn = text.includes("your turn") || (text.includes("دورك") && !text.includes("opponent"));
+    // التحقق من الدور مع فحص القفل (isWaiting)
+    const isMyTurn = (text.includes("your turn") || text.includes("دورك")) && !text.includes("opponent");
 
-    if (isMyTurn) {
+    if (isMyTurn && !settings.isWaiting) {
+        settings.isWaiting = true; // تفعيل القفل فوراً
         const nextMove = settings.moves[settings.currentIndex];
 
         setTimeout(async () => {
-            if (settings.isRunning) {
-                try {
-                    await service.messaging.sendPrivateMessage(settings.targetBotId, nextMove);
-                    console.log(`🕹️ لعبت الرقم: ${nextMove}`);
-                    settings.currentIndex = (settings.currentIndex + 1) % settings.moves.length;
-                } catch (err) {
-                    console.error("❌ فشل إرسال الحركة:", err.message);
-                }
+            try {
+                await service.messaging.sendPrivateMessage(settings.targetBotId, nextMove);
+                console.log(`🕹️ لعبت: ${nextMove}`);
+                
+                settings.currentIndex = (settings.currentIndex + 1) % settings.moves.length;
+                
+                // نترك القفل مفعلاً لثانية إضافية لضمان عدم الرد على نفس الرسالة مرة أخرى
+                setTimeout(() => { settings.isWaiting = false; }, 2000); 
+            } catch (err) {
+                settings.isWaiting = false; // فك القفل في حال فشل الإرسال للمحاولة ثانية
+                console.error("❌ خطأ:", err.message);
             }
-        }, 1500);
+        }, 1000);
     }
 });
 
