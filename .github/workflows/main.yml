@@ -1,4 +1,4 @@
-name: XO Bot Runner
+Name: XO Bot Runner
 
 on:
   push:
@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
+
+# هذا الجزء هو المسؤول عن قتل النسخ القديمة
+concurrency:
+  group: xobot-group
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -22,9 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # حذف أي ملفات قديمة
           rm -rf node_modules package-lock.json
-          # تثبيت المكتبات مع تجاهل wrtc تماماً إذا كان ذلك ممكناً
           npm install --no-audit --no-fund
           
       - name: Run Bot
