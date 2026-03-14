@@ -20,15 +20,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Clean Install
+      - name: Install dependencies
         run: |
-          rm -f package-lock.json
-          npm install --no-audit --no-fund --ignore-scripts
-          # التعديل هنا: --ignore-scripts سيمنع محاولة بناء مكتبة wrtc الفاشلة
-
+          # حذف أي ملفات قديمة
+          rm -rf node_modules package-lock.json
+          # تثبيت المكتبات مع تجاهل wrtc تماماً إذا كان ذلك ممكناً
+          npm install --no-audit --no-fund
+          
       - name: Run Bot
         env:
           U_MAIL: ${{ secrets.U_MAIL }}
           U_PASS: ${{ secrets.U_PASS }}
         run: node index.js
-
