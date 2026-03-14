@@ -1,0 +1,14 @@
+{
+  "name": "wolf-xo-bot",
+  "version": "1.0.0",
+  "description": "XO Bot for WOLF",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "wolf.js": "^1.2.0",
+    "dotenv": "^16.0.0"
+  }
+}
