@@ -18,13 +18,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20' # إصدار مستقر وحديث
+          node-version: '20'
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund --omit=optional
+      - name: Clean Install
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund --ignore-scripts
+          # التعديل هنا: --ignore-scripts سيمنع محاولة بناء مكتبة wrtc الفاشلة
 
       - name: Run Bot
         env:
           U_MAIL: ${{ secrets.U_MAIL }}
           U_PASS: ${{ secrets.U_PASS }}
         run: node index.js
+
