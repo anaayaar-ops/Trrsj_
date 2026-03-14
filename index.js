@@ -33,7 +33,7 @@ const manageWorkCycle = () => {
 };
 
 service.on('ready', () => {
-    console.log(`✅ المتصل: ${service.currentSubscriber.nickname}`);
+    console.log(`✅ البوت نشط الآن: ${service.currentSubscriber.nickname}`);
     service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
     manageWorkCycle();
 });
@@ -41,44 +41,49 @@ service.on('ready', () => {
 service.on('privateMessage', async (message) => {
     if (!settings.isRunning || message.sourceSubscriberId !== settings.targetBotId) return;
 
-    // تحويل كل محتوى الرسالة (النص أو الوصف) لنص صغير للبحث فيه
-    const text = (message.body || message.content || "").toLowerCase();
-    const embedText = message.embeds ? JSON.stringify(message.embeds).toLowerCase() : "";
-    const fullContent = text + embedText;
+    // تجميع كل البيانات الممكنة من الرسالة (النص، المحتوى، والـ Embed)
+    const body = (message.body || "").toLowerCase();
+    const content = (message.content || "").toLowerCase();
+    const embedData = message.embeds ? JSON.stringify(message.embeds).toLowerCase() : "";
+    const allData = body + content + embedData;
 
-    // 1. رصد انتهاء اللعبة
-    if (fullContent.includes("won") || fullContent.includes("lost") || fullContent.includes("draw") || fullContent.includes("انتهت")) {
+    // 1. إعادة الطلب عند الفوز أو الخسارة فوراً
+    if (allData.includes("won") || allData.includes("lost") || allData.includes("draw") || allData.includes("انتهت")) {
         settings.currentIndex = 0;
         settings.isWaiting = false;
+        console.log("🏁 انتهت اللعبة، سأعيد الطلب خلال 5 ثوانٍ...");
         setTimeout(() => {
             if (settings.isRunning) service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
         }, 5000);
         return;
     }
 
-    // 2. التحقق من الدور (جعلنا الشرط أسهل لضمان الاستجابة)
-    // سيبحث عن كلمة turn أو seconds (بسبب رسالة الـ 15 ثانية) أو دورك
-    const hasTurnIndicator = fullContent.includes("turn") || fullContent.includes("seconds") || fullContent.includes("دورك");
-    const isNotOpponent = !fullContent.includes("opponents turn");
+    // 2. التفاعل الفوري مع اللوحة (Your Turn)
+    // أضفنا فحص وجود المربعات ⬜ ليعرف أنها لوحة لعب حتى لو لم يقرأ النص
+    const isBoardPresent = allData.includes("⬜") || allData.includes("1") || allData.includes("2");
+    const isMyTurn = (allData.includes("your turn") || allData.includes("دورك")) && !allData.includes("opponent");
 
-    if (hasTurnIndicator && isNotOpponent && !settings.isWaiting) {
-        settings.isWaiting = true;
+    // سيتفاعل إذا رأى "دورك" أو إذا كانت اللوحة موجودة وهو ليس دور الخصم
+    if ((isMyTurn || (isBoardPresent && !allData.includes("opponent"))) && !settings.isWaiting) {
+        
+        settings.isWaiting = true; 
         const nextMove = settings.moves[settings.currentIndex];
 
-        console.log(`🎯 تم رصد الدور. إرسال الرقم: ${nextMove}`);
+        console.log(`🚀 تفاعل فوري! إرسال الرقم: ${nextMove}`);
 
+        // تقليل التأخير ليكون الرد سريعاً جداً (0.5 ثانية فقط)
         setTimeout(async () => {
             try {
                 await service.messaging.sendPrivateMessage(settings.targetBotId, nextMove);
                 settings.currentIndex = (settings.currentIndex + 1) % settings.moves.length;
                 
-                // فك القفل بعد فترة بسيطة للسماح بالحركة التالية
-                setTimeout(() => { settings.isWaiting = false; }, 3000); 
+                // القفل لثانية واحدة فقط لمنع التكرار مع السماح بالسرعة
+                setTimeout(() => { settings.isWaiting = false; }, 1500); 
             } catch (err) {
                 settings.isWaiting = false;
-                console.error("❌ خطأ إرسال:", err.message);
+                console.error("❌ فشل الإرسال:", err.message);
             }
-        }, 1000);
+        }, 500); 
     }
 });
 
