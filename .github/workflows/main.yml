@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest # سنستخدم أحدث نظام متاح
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -18,13 +18,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20.x' # تحديث الإصدار إلى 20 لحل تعارض المكتبات
+          node-version: '20' # إصدار مستقر وحديث
 
       - name: Install dependencies
-        run: |
-          npm install --no-audit --no-fund
-          # إذا كانت هناك مشكلة في wrtc ولم تكن تستخدمها فعلياً، يفضل حذفها
-        
+        run: npm install --no-audit --no-fund --omit=optional
+
       - name: Run Bot
         env:
           U_MAIL: ${{ secrets.U_MAIL }}
