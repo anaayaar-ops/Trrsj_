@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "wolf.js": "^1.2.0",
+    "wolf.js": "latest",
     "dotenv": "^16.4.5"
   }
 }
