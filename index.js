@@ -13,77 +13,67 @@ const settings = {
     gameCommand: "!او خاص 51660277",
     moves: ["2", "5", "8"],
     currentIndex: 0,
-    // إعدادات التوقيت
-    isRunning: true, // حالة البوت الحالية
-    workDuration: 52 * 60 * 1000, // 52 دقيقة بالمللي ثانية
-    restDuration: 8 * 60 * 1000   // 8 دقائق بالمللي ثانية
+    isRunning: true, 
+    workDuration: 52 * 60 * 1000, 
+    restDuration: 8 * 60 * 1000   
 };
 
 const service = new WOLF();
 
-// وظيفة إدارة وقت العمل والراحة
 const manageWorkCycle = () => {
     if (settings.isRunning) {
-        // إذا كان يعمل، سنوقفه بعد 52 دقيقة
         setTimeout(() => {
             settings.isRunning = false;
             console.log("⏸️ بدأت فترة الراحة (8 دقائق)... البوت متوقف الآن.");
-            manageWorkCycle(); // استدعاء الوظيفة لجدولة العودة للعمل
+            manageWorkCycle();
         }, settings.workDuration);
     } else {
-        // إذا كان في استراحة، سنعيده للعمل بعد 8 دقائق
         setTimeout(() => {
             settings.isRunning = true;
-            console.log("🚀 انتهت الاستراحة! العودة للعمل لـ 52 دقيقة.");
-            // إرسال أمر بدء جديد عند العودة من الاستراحة
+            console.log("🚀 انتهت الاستراحة! العودة للعمل.");
             service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-            manageWorkCycle(); // استدعاء الوظيفة لجدولة الاستراحة القادمة
+            manageWorkCycle();
         }, settings.restDuration);
     }
 };
 
 service.on('ready', async () => {
     console.log(`✅ البوت متصل: ${service.currentSubscriber.nickname}`);
-    console.log("⏱️ نظام تجنب السبام مفعل: 52 دقيقة عمل / 8 دقائق راحة.");
-    
-    // بدء اللعبة لأول مرة
     await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-    
-    // بدء عداد الدورة (العمل والراحة)
     manageWorkCycle();
 });
 
 service.on('privateMessage', async (message) => {
-    // إذا كان البوت في فترة الراحة، يتجاهل الرسائل تماماً
     if (!settings.isRunning) return;
-
     if (message.sourceSubscriberId !== settings.targetBotId) return;
 
     const text = (message.body || "").toLowerCase();
 
-    // رصد حالة انتهاء اللعبة
+    // 1. رصد رسائل انتهاء الوقت أو الانسحاب (Forfeited) وإعادة الطلب
+    const isForfeited = text.includes("forfeited") || text.includes("failed to chose") || text.includes("failed to pick");
+
+    // 2. رصد حالة انتهاء اللعبة الطبيعية
     const gameEnded = text.includes("won") || text.includes("lost") || text.includes("draw") || 
                       text.includes("فاز") || text.includes("خسر") || text.includes("تعادل") || text.includes("انتهت");
 
-    if (gameEnded) {
+    if (gameEnded || isForfeited) {
         settings.currentIndex = 0;
+        console.log("🏁 انتهت الجولة أو حدث انسحاب. الانتظار 5 ثوانٍ قبل الطلب الجديد...");
         
-        // الانتظار لمدة 5 ثواني قبل إعادة طلب اللعبة
         setTimeout(async () => {
-            // نتحقق مرة أخرى إذا كان لا يزال في وقت العمل قبل إرسال الطلب الجديد
             if (settings.isRunning) {
                 try {
                     await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-                    console.log(`🔄 إعادة طلب اللعبة بعد انتظار 5 ثوانٍ...`);
+                    console.log(`🔄 إعادة طلب اللعبة...`);
                 } catch (err) {
                     console.error("❌ فشل إعادة الطلب:", err.message);
                 }
             }
-        }, 5000); // 5 ثواني
+        }, 5000); // الانتظار 5 ثوانٍ
         return;
     }
 
-    // رصد الدور (Your Turn)
+    // 3. رصد الدور (Your Turn)
     const isMyTurn = text.includes("your turn") || (text.includes("دورك") && !text.includes("opponent"));
 
     if (isMyTurn) {
