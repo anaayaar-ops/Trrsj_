@@ -13,69 +13,78 @@ const settings = {
     gameCommand: "!او خاص 51660277",
     moves: ["2", "5", "8"],
     currentIndex: 0,
-    isRunning: true, 
-    workDuration: 52 * 60 * 1000, 
-    restDuration: 8 * 60 * 1000   
+    // إعدادات التوقيت
+    isRunning: true, // حالة البوت الحالية
+    workDuration: 52 * 60 * 1000, // 52 دقيقة بالمللي ثانية
+    restDuration: 8 * 60 * 1000   // 8 دقائق بالمللي ثانية
 };
 
 const service = new WOLF();
 
+// وظيفة إدارة وقت العمل والراحة
 const manageWorkCycle = () => {
     if (settings.isRunning) {
+        // إذا كان يعمل، سنوقفه بعد 52 دقيقة
         setTimeout(() => {
             settings.isRunning = false;
-            console.log("⏸️ بدأت فترة الراحة (8 دقائق)...");
-            manageWorkCycle();
+            console.log("⏸️ بدأت فترة الراحة (8 دقائق)... البوت متوقف الآن.");
+            manageWorkCycle(); // استدعاء الوظيفة لجدولة العودة للعمل
         }, settings.workDuration);
     } else {
+        // إذا كان في استراحة، سنعيده للعمل بعد 8 دقائق
         setTimeout(() => {
             settings.isRunning = true;
-            console.log("🚀 العودة للعمل لـ 52 دقيقة.");
+            console.log("🚀 انتهت الاستراحة! العودة للعمل لـ 52 دقيقة.");
+            // إرسال أمر بدء جديد عند العودة من الاستراحة
             service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-            manageWorkCycle();
+            manageWorkCycle(); // استدعاء الوظيفة لجدولة الاستراحة القادمة
         }, settings.restDuration);
     }
 };
 
 service.on('ready', async () => {
     console.log(`✅ البوت متصل: ${service.currentSubscriber.nickname}`);
+    console.log("⏱️ نظام تجنب السبام مفعل: 52 دقيقة عمل / 8 دقائق راحة.");
+    
+    // بدء اللعبة لأول مرة
     await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
+    
+    // بدء عداد الدورة (العمل والراحة)
     manageWorkCycle();
 });
 
 service.on('privateMessage', async (message) => {
+    // إذا كان البوت في فترة الراحة، يتجاهل الرسائل تماماً
     if (!settings.isRunning) return;
+
     if (message.sourceSubscriberId !== settings.targetBotId) return;
 
-    // دمج محتوى الرسالة والـ Embed لضمان القراءة الصحيحة
-    const body = (message.body || "").toLowerCase();
-    const embedData = message.embeds ? JSON.stringify(message.embeds).toLowerCase() : "";
-    const allData = body + embedData;
+    const text = (message.body || "").toLowerCase();
 
     // رصد حالة انتهاء اللعبة
-    const gameEnded = allData.includes("won") || allData.includes("lost") || allData.includes("draw") || 
-                      allData.includes("فاز") || allData.includes("خسر") || allData.includes("تعادل") || allData.includes("انتهت");
+    const gameEnded = text.includes("won") || text.includes("lost") || text.includes("draw") || 
+                      text.includes("فاز") || text.includes("خسر") || text.includes("تعادل") || text.includes("انتهت");
 
     if (gameEnded) {
         settings.currentIndex = 0;
-        console.log("🏁 انتهت اللعبة. الانتظار 5 ثوانٍ قبل الطلب الجديد...");
         
-        // ⬇️ هنا تم ضبط الانتظار لـ 5 ثواني قبل بدء قيم جديد
+        // الانتظار لمدة 5 ثواني قبل إعادة طلب اللعبة
         setTimeout(async () => {
+            // نتحقق مرة أخرى إذا كان لا يزال في وقت العمل قبل إرسال الطلب الجديد
             if (settings.isRunning) {
                 try {
                     await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-                    console.log(`🔄 تم إرسال طلب لعبة جديد بعد انتظار 5 ثوانٍ.`);
+                    console.log(`🔄 إعادة طلب اللعبة بعد انتظار 5 ثوانٍ...`);
                 } catch (err) {
                     console.error("❌ فشل إعادة الطلب:", err.message);
                 }
             }
-        }, 5000); // 5000ms = 5 ثواني
+        }, 5000); // 5 ثواني
         return;
     }
 
     // رصد الدور (Your Turn)
-    const isMyTurn = (allData.includes("your turn") || allData.includes("دورك")) && !allData.includes("opponent");
+    const isMyTurn = text.includes("your turn") || (text.includes("دورك") && !text.includes("opponent"));
 
     if (isMyTurn) {
         const nextMove = settings.moves[settings.currentIndex];
