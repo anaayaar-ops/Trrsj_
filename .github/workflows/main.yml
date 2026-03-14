@@ -1,4 +1,4 @@
-Name: XO Bot Runner
+name: XO Bot Runner
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
     - cron: '0 */4 * * *'
   workflow_dispatch:
 
-# هذا الجزء هو المسؤول عن قتل النسخ القديمة
 concurrency:
   group: xobot-group
   cancel-in-progress: true
