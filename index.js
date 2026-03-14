@@ -9,29 +9,25 @@ const settings = {
     identity: process.env.U_MAIL,
     secret: process.env.U_PASS,
     targetBotId: 82727814,
-    gameCommand: "!او خاص 51660277", // أو الأمر الخاص بالبوت المساعد
-    moves: ["2", "5", "8"], // أو ["1", "3", "7"] للمساعد
+    gameCommand: "!او خاص 51660277",
+    moves: ["2", "5", "8"],
     currentIndex: 0,
     isRunning: true,
-    isWaiting: false, // القفل لمنع التكرار
+    isWaiting: false,
     workDuration: 52 * 60 * 1000,
     restDuration: 8 * 60 * 1000
 };
 
 const service = new WOLF();
 
-// نفس وظيفة manageWorkCycle السابقة...
 const manageWorkCycle = () => {
     if (settings.isRunning) {
-        setTimeout(() => {
-            settings.isRunning = false;
-            manageWorkCycle();
-        }, settings.workDuration);
+        setTimeout(() => { settings.isRunning = false; manageWorkCycle(); }, settings.workDuration);
     } else {
-        setTimeout(() => {
-            settings.isRunning = true;
+        setTimeout(() => { 
+            settings.isRunning = true; 
             service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-            manageWorkCycle();
+            manageWorkCycle(); 
         }, settings.restDuration);
     }
 };
@@ -45,37 +41,42 @@ service.on('ready', () => {
 service.on('privateMessage', async (message) => {
     if (!settings.isRunning || message.sourceSubscriberId !== settings.targetBotId) return;
 
-    const text = (message.body || "").toLowerCase();
+    // تحويل كل محتوى الرسالة (النص أو الوصف) لنص صغير للبحث فيه
+    const text = (message.body || message.content || "").toLowerCase();
+    const embedText = message.embeds ? JSON.stringify(message.embeds).toLowerCase() : "";
+    const fullContent = text + embedText;
 
-    // رصد انتهاء اللعبة وتصفير القفل والمؤشر
-    if (text.includes("won") || text.includes("lost") || text.includes("draw") || text.includes("انتهت")) {
+    // 1. رصد انتهاء اللعبة
+    if (fullContent.includes("won") || fullContent.includes("lost") || fullContent.includes("draw") || fullContent.includes("انتهت")) {
         settings.currentIndex = 0;
-        settings.isWaiting = false; // فك القفل للجولة الجديدة
+        settings.isWaiting = false;
         setTimeout(() => {
             if (settings.isRunning) service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
         }, 5000);
         return;
     }
 
-    // التحقق من الدور مع فحص القفل (isWaiting)
-    const isMyTurn = (text.includes("your turn") || text.includes("دورك")) && !text.includes("opponent");
+    // 2. التحقق من الدور (جعلنا الشرط أسهل لضمان الاستجابة)
+    // سيبحث عن كلمة turn أو seconds (بسبب رسالة الـ 15 ثانية) أو دورك
+    const hasTurnIndicator = fullContent.includes("turn") || fullContent.includes("seconds") || fullContent.includes("دورك");
+    const isNotOpponent = !fullContent.includes("opponents turn");
 
-    if (isMyTurn && !settings.isWaiting) {
-        settings.isWaiting = true; // تفعيل القفل فوراً
+    if (hasTurnIndicator && isNotOpponent && !settings.isWaiting) {
+        settings.isWaiting = true;
         const nextMove = settings.moves[settings.currentIndex];
+
+        console.log(`🎯 تم رصد الدور. إرسال الرقم: ${nextMove}`);
 
         setTimeout(async () => {
             try {
                 await service.messaging.sendPrivateMessage(settings.targetBotId, nextMove);
-                console.log(`🕹️ لعبت: ${nextMove}`);
-                
                 settings.currentIndex = (settings.currentIndex + 1) % settings.moves.length;
                 
-                // نترك القفل مفعلاً لثانية إضافية لضمان عدم الرد على نفس الرسالة مرة أخرى
-                setTimeout(() => { settings.isWaiting = false; }, 2000); 
+                // فك القفل بعد فترة بسيطة للسماح بالحركة التالية
+                setTimeout(() => { settings.isWaiting = false; }, 3000); 
             } catch (err) {
-                settings.isWaiting = false; // فك القفل في حال فشل الإرسال للمحاولة ثانية
-                console.error("❌ خطأ:", err.message);
+                settings.isWaiting = false;
+                console.error("❌ خطأ إرسال:", err.message);
             }
         }, 1000);
     }
