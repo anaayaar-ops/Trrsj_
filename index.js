@@ -8,88 +8,41 @@ const { WOLF } = wolfjs;
 const settings = {
     identity: process.env.U_MAIL,
     secret: process.env.U_PASS,
-    targetBotId: 82727814,
-    targetPlayerId: 51660277,
-    gameCommand: "!او خاص 51660277",
-    moves: ["2", "5", "8"],
-    currentIndex: 0,
-    isRunning: true, 
-    workDuration: 52 * 60 * 1000, 
-    restDuration: 8 * 60 * 1000   
+    targetGroupId: 9969, // رقم القناة (الغرفة)
+    commandToSend: "!مد مهام", // الأمر المطلوب إرساله
+    intervalDuration: 60 * 1000 // دقيقة واحدة (60 ثانية)
 };
 
 const service = new WOLF();
 
-const manageWorkCycle = () => {
-    if (settings.isRunning) {
-        setTimeout(() => {
-            settings.isRunning = false;
-            console.log("⏸️ بدأت فترة الراحة (8 دقائق)... البوت متوقف الآن.");
-            manageWorkCycle();
-        }, settings.workDuration);
-    } else {
-        setTimeout(() => {
-            settings.isRunning = true;
-            console.log("🚀 انتهت الاستراحة! العودة للعمل.");
-            service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-            manageWorkCycle();
-        }, settings.restDuration);
-    }
+// وظيفة إرسال الرسالة بشكل متكرر
+const startSendingLoop = () => {
+    setInterval(async () => {
+        try {
+            await service.messaging.sendGroupMessage(settings.targetGroupId, settings.commandToSend);
+            console.log(` ✅ تم إرسال الأمر: "${settings.commandToSend}" إلى القناة: ${settings.targetGroupId}`);
+        } catch (err) {
+            console.error(" ❌ فشل في إرسال الرسالة:", err.message);
+        }
+    }, settings.intervalDuration);
 };
 
 service.on('ready', async () => {
-    console.log(`✅ البوت متصل: ${service.currentSubscriber.nickname}`);
-    await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-    manageWorkCycle();
-});
-
-service.on('privateMessage', async (message) => {
-    if (!settings.isRunning) return;
-    if (message.sourceSubscriberId !== settings.targetBotId) return;
-
-    const text = (message.body || "").toLowerCase();
-
-    // 1. رصد رسائل انتهاء الوقت أو الانسحاب (Forfeited) وإعادة الطلب
-    const isForfeited = text.includes("forfeited") || text.includes("failed to chose") || text.includes("failed to pick");
-
-    // 2. رصد حالة انتهاء اللعبة الطبيعية
-    const gameEnded = text.includes("won") || text.includes("lost") || text.includes("draw") || 
-                      text.includes("فاز") || text.includes("خسر") || text.includes("تعادل") || text.includes("انتهت");
-
-    if (gameEnded || isForfeited) {
-        settings.currentIndex = 0;
-        console.log("🏁 انتهت الجولة أو حدث انسحاب. الانتظار 5 ثوانٍ قبل الطلب الجديد...");
+    console.log(`✅ البوت متصل باسم: ${service.currentSubscriber.nickname}`);
+    
+    try {
+        // محاولة الانضمام للقناة أولاً للتأكد من القدرة على الإرسال
+        await service.group.joinById(settings.targetGroupId);
+        console.log(` 🏠 تم الدخول إلى القناة رقم: ${settings.targetGroupId}`);
         
-        setTimeout(async () => {
-            if (settings.isRunning) {
-                try {
-                    await service.messaging.sendPrivateMessage(settings.targetBotId, settings.gameCommand);
-                    console.log(`🔄 إعادة طلب اللعبة...`);
-                } catch (err) {
-                    console.error("❌ فشل إعادة الطلب:", err.message);
-                }
-            }
-        }, 5000); // الانتظار 5 ثوانٍ
-        return;
-    }
-
-    // 3. رصد الدور (Your Turn)
-    const isMyTurn = text.includes("your turn") || (text.includes("دورك") && !text.includes("opponent"));
-
-    if (isMyTurn) {
-        const nextMove = settings.moves[settings.currentIndex];
-
-        setTimeout(async () => {
-            if (settings.isRunning) {
-                try {
-                    await service.messaging.sendPrivateMessage(settings.targetBotId, nextMove);
-                    console.log(`🕹️ لعبت الرقم: ${nextMove}`);
-                    settings.currentIndex = (settings.currentIndex + 1) % settings.moves.length;
-                } catch (err) {
-                    console.error("❌ فشل إرسال الحركة:", err.message);
-                }
-            }
-        }, 1500);
+        // إرسال أول رسالة فور الدخول
+        await service.messaging.sendGroupMessage(settings.targetGroupId, settings.commandToSend);
+        
+        // بدء الحلقة التكرارية (كل دقيقة)
+        startSendingLoop();
+        
+    } catch (err) {
+        console.error(" ❌ حدث خطأ أثناء الانضمام أو الإرسال الأول:", err.message);
     }
 });
 
