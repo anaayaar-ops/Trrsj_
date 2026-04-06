@@ -5,13 +5,13 @@ const { WOLF } = wolfjs;
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
-    targetGroupId: 9969, 
+    targetGroupId: 224, 
     minuteInterval: 62 * 1000,      // دقيقة واحدة
     boxInterval: 3 * 60 * 1000      // 3 دقائق
 };
 
 const MY_INFO = {
-    nickname: "🐈‍⬛", 
+    nickname: "🥂", 
     ownerId: "2481425"
 };
 
