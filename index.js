@@ -6,12 +6,12 @@ const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
     targetGroupId: 9969, 
-    minuteInterval: 60 * 1000,      // دقيقة واحدة
+    minuteInterval: 62 * 1000,      // دقيقة واحدة
     boxInterval: 3 * 60 * 1000      // 3 دقائق
 };
 
 const MY_INFO = {
-    nickname: "  ", 
+    nickname: "🐈‍⬛", 
     ownerId: "2481425"
 };
 
@@ -52,8 +52,8 @@ service.on('groupMessage', async (message) => {
         if (!isTrap || !isForMe) return;
 
         let answer = null;
-        const numToWord = {'1':'واحد','2':'اثنان','3':'ثلاثة','4':'أربعة','5':'خمسة','6':'ستة','7':'سبعة','8':'ثمانية','9':'تسعة','10':'عشرة'};
-        const wordToNum = {'واحد':'1','اثنان':'2','ثلاثة':'3','أربعة':'4','خمسة':'5','ستة':'6','سبعة':'7','ثمانية':'8','تسعة':'9','عشرة':'10'};
+        const numToWord = {'1':'واحد','2':'اثنان','3':'ثلاثة','4':'اربعة','5':'خمسة','6':'ستة','7':'سبعة','8':'ثمانية','9':'تسعة','10':'عشرة'};
+        const wordToNum = {'واحد':'1','اثنان':'2','ثلاثة':'3','اربعة':'4','خمسة':'5','ستة':'6','سبعة':'7','ثمانية':'8','تسعة':'9','عشرة':'10'};
 
         // تحليل الأسئلة
         if (content.includes('الصندوق') || content.includes('الصناديق') || content.includes('فئات صناديق')) {
