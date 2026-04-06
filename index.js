@@ -3,18 +3,17 @@ import wolfjs from 'wolf.js';
 const { WOLF } = wolfjs;
 
 /** * --- 1. الإعدادات والبيانات الشخصية ---
- * تأكد من ملء بياناتك في ملف .env أو وضعها هنا مباشرة
  */
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
-    targetGroupId: 9969,           // رقم الغرفة (القناة)
+    targetGroupId: 9969,           // رقم الغرفة
     intervalDuration: 62 * 1000   // تكرار الدورة كل 62 ثانية
 };
 
 const MY_INFO = {
-    nickname: "   ",         // اسمك كما يظهر في أول سطر من رسالة الفخ
-    medBotId: 51660277 ,           // معرف بوت المدينة (مد)
+    nickname: "  ",         // اسمك كما يظهر في الفخ
+    botName: "᷂فزآعنا²³⁰",       // اسم البوت الذي يرسل الفخاخ
     ownerId: "2481425"            // رقم عضوية صاحب البوت
 };
 
@@ -22,15 +21,12 @@ const service = new WOLF();
 
 /**
  * --- 2. وظيفة إرسال الأوامر التلقائية ---
- * ترسل !مد مهام ثم تنتظر 5 ثوانٍ وترسل !مد تحالف ايداع كل
  */
 const sendCommands = async () => {
     try {
-        // إرسال الأمر الأول
         await service.messaging.sendGroupMessage(settings.targetGroupId, "!مد مهام");
         console.log(`[${new Date().toLocaleTimeString()}] ✅ تم إرسال: !مد مهام`);
 
-        // الانتظار 5 ثوانٍ قبل الأمر الثاني
         setTimeout(async () => {
             try {
                 await service.messaging.sendGroupMessage(settings.targetGroupId, "!مد تحالف ايداع كل");
@@ -38,7 +34,7 @@ const sendCommands = async () => {
             } catch (err) {
                 console.error("❌ فشل إرسال الأمر الثاني:", err.message);
             }
-        }, 5000);
+        }, 5000); // فاصل 5 ثوانٍ
 
     } catch (err) {
         console.error("❌ فشل إرسال الأمر الأول:", err.message);
@@ -46,98 +42,96 @@ const sendCommands = async () => {
 };
 
 /**
- * --- 3. نظام معالجة الفخاخ (الرد الذكي) ---
+ * --- 3. نظام معالجة الفخاخ (الرد الذكي بالاسم) ---
  */
 service.on('groupMessage', async (message) => {
-    // التحقق من صحة الرسالة (المصدر والمستهدف)
-    const isFromMed = message.subscriberId === MY_INFO.medBotId;
-    const firstLine = message.body.split('\n')[0];
-    const isTargetingMe = firstLine.includes(MY_INFO.nickname);
-    const isInRightGroup = message.targetGroupId === settings.targetGroupId;
+    try {
+        // جلب بيانات مرسل الرسالة للتحقق من اسمه
+        const sender = await service.subscriber.getById(message.subscriberId);
+        const senderName = sender.nickname;
 
-    if (!isInRightGroup || !isFromMed || !isTargetingMe) return;
+        // التحقق: هل الرسالة من "بوت المدينة"؟ وهل اسمك في أول سطر؟ وفي الغرفة الصحيحة؟
+        const isFromMedBot = senderName.includes(MY_INFO.botName);
+        const firstLine = message.body.split('\n')[0];
+        const isTargetingMe = firstLine.includes(MY_INFO.nickname);
+        const isInRightGroup = message.targetGroupId === settings.targetGroupId;
 
-    const content = message.body;
-    let answer = null;
+        if (!isInRightGroup || !isFromMedBot || !isTargetingMe) return;
 
-    // قواميس التحويل
-    const numToWord = {
-        '1':'واحد', '2':'اثنان', '3':'ثلاثة', '4':'أربعة', '5':'خمسة',
-        '6':'ستة', '7':'سبعة', '8':'ثمانية', '9':'تسعة', '10':'عشرة'
-    };
-    const wordToNum = Object.fromEntries(Object.entries(numToWord).map(([k, v]) => [v, k]));
+        const content = message.body;
+        let answer = null;
 
-    console.log(`⚠️ فخ مكتشف! جاري تحليل السؤال...`);
+        // قواميس التحويل
+        const numToWord = {
+            '1':'واحد', '2':'اثنان', '3':'ثلاثة', '4':'أربعة', '5':'خمسة',
+            '6':'ستة', '7':'سبعة', '8':'ثمانية', '9':'تسعة', '10':'عشرة'
+        };
+        const wordToNum = Object.fromEntries(Object.entries(numToWord).map(([k, v]) => [v, k]));
 
-    // --- منطق استخراج الإجابة ---
+        console.log(`⚠️ فخ مكتشف من [${senderName}] موجه لك... جاري التحليل.`);
 
-    // أ) تحويل الرقم إلى كلمات (مثال: اكتب الرقم بالكلمات 7)
-    if (content.includes('بالكلمات')) {
-        const match = content.match(/\d+/);
-        if (match && numToWord[match[0]]) answer = numToWord[match[0]];
-    }
-    // ب) تحويل الكلمات إلى أرقام (مثال: اكتب بالأرقام سبعة)
-    else if (content.includes('بالأرقام') || content.includes('بالارقام')) {
-        for (let word in wordToNum) {
-            if (content.includes(word)) { answer = wordToNum[word]; break; }
+        // --- منطق استخراج الإجابة ---
+        
+        // 1. تحويل رقم لـ كلمات
+        if (content.includes('بالكلمات')) {
+            const match = content.match(/\d+/);
+            if (match && numToWord[match[0]]) answer = numToWord[match[0]];
         }
-    }
-    // ج) ناتج عملية حسابية أو أيهما أكبر
-    else if (content.includes('ناتج') || content.includes('أيهما أكبر')) {
-        const nums = content.match(/\d+/g);
-        if (nums && nums.length >= 2) {
-            answer = content.includes('أكبر') ? Math.max(parseInt(nums[0]), parseInt(nums[1])) : (parseInt(nums[0]) + parseInt(nums[1]));
-        }
-    }
-    // د) أسئلة الصناديق أو العضوية
-    else if (content.includes('الصناديق') || content.includes('الصندوق')) {
-        answer = "صح";
-    } else if (content.includes('صاحب البوت')) {
-        answer = MY_INFO.ownerId;
-    }
-    // هـ) اكتب الكلمة كما هي أو اكتب الرقم فقط
-    else if (content.includes('اكتب الكلمة كما هي')) {
-        const match = content.match(/كما هي:\s*(\S+)/);
-        if (match) answer = match[1];
-    } else if (content.includes('اكتب الرقم')) {
-        const match = content.match(/\d+/);
-        if (match) answer = match[0];
-    }
-
-    // --- إرسال الرد النهائي ---
-    if (answer !== null) {
-        const finalResponse = `!${answer}`;
-        // تأخير عشوائي بين 7 و 14 ثانية ليبدو بشرياً
-        const delay = Math.floor(Math.random() * (14000 - 7000 + 1)) + 7000;
-
-        setTimeout(async () => {
-            try {
-                await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
-                console.log(`🎯 تم حل الفخ بالإجابة: ${finalResponse}`);
-            } catch (err) {
-                console.error("❌ فشل إرسال رد الفخ:", err.message);
+        // 2. تحويل كلمات لـ أرقام
+        else if (content.includes('بالأرقام') || content.includes('بالارقام')) {
+            for (let word in wordToNum) {
+                if (content.includes(word)) { answer = wordToNum[word]; break; }
             }
-        }, delay);
+        }
+        // 3. حسابات وأكبر
+        else if (content.includes('ناتج') || content.includes('أيهما أكبر')) {
+            const nums = content.match(/\d+/g);
+            if (nums && nums.length >= 2) {
+                answer = content.includes('أكبر') ? Math.max(parseInt(nums[0]), parseInt(nums[1])) : (parseInt(nums[0]) + parseInt(nums[1]));
+            }
+        }
+        // 4. صناديق وعضوية
+        else if (content.includes('الصناديق') || content.includes('الصندوق')) {
+            answer = "صح";
+        } else if (content.includes('صاحب البوت')) {
+            answer = MY_INFO.ownerId;
+        }
+        // 5. اكتب كما هي أو اكتب الرقم
+        else if (content.includes('اكتب الكلمة كما هي')) {
+            const match = content.match(/كما هي:\s*(\S+)/);
+            if (match) answer = match[1];
+        } else if (content.includes('اكتب الرقم')) {
+            const match = content.match(/\d+/);
+            if (match) answer = match[0];
+        }
+
+        // إرسال الرد
+        if (answer !== null) {
+            const finalResponse = `!${answer}`;
+            const delay = Math.floor(Math.random() * (13000 - 6000 + 1)) + 6000;
+
+            setTimeout(async () => {
+                try {
+                    await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
+                    console.log(`🎯 تم الرد على الفخ: ${finalResponse}`);
+                } catch (err) { console.error("❌ فشل رد الفخ:", err.message); }
+            }, delay);
+        }
+    } catch (err) {
+        // تجاهل الأخطاء البسيطة في جلب بيانات المستخدمين
     }
 });
 
 /**
- * --- 4. بدء التشغيل والاتصال ---
+ * --- 4. بدء التشغيل ---
  */
 service.on('ready', async () => {
-    console.log(`✅ البوت متصل بنجاح باسم: ${service.currentSubscriber.nickname}`);
+    console.log(`✅ البوت متصل باسم: ${service.currentSubscriber.nickname}`);
     try {
         await service.group.joinById(settings.targetGroupId);
-        console.log(`🏠 دخلت الغرفة رقم: ${settings.targetGroupId}`);
-        
-        // تنفيذ الدورة الأولى فوراً
         await sendCommands();
-        
-        // بدء الحلقة التكرارية
         setInterval(sendCommands, settings.intervalDuration);
-    } catch (err) {
-        console.error("❌ خطأ عند بدء التشغيل:", err.message);
-    }
+    } catch (err) { console.error("❌ خطأ بالبداية:", err.message); }
 });
 
 service.login(settings.identity, settings.secret);
