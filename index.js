@@ -11,7 +11,7 @@ const settings = {
 };
 
 const MY_INFO = {
-    nickname: "🥂", 
+    nickname: "🐈‍⬛ ", 
     ownerId: "2481425"
 };
 
