@@ -8,12 +8,12 @@ const { WOLF } = wolfjs;
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
-    targetGroupId: 224,           // رقم الغرفة (القناة)
+    targetGroupId: 9969,           // رقم الغرفة (القناة)
     intervalDuration: 62 * 1000   // تكرار المهام كل 62 ثانية
 };
 
 const MY_INFO = {
-    nickname: "فزآعنا²³⁰",         // لقبك كما يظهر في رسالة الفخ
+    nickname: "  ",         // لقبك كما يظهر في رسالة الفخ
     ownerId: "2481425"            // رقم عضوية صاحب البوت
 };
 
