@@ -5,8 +5,8 @@ const { WOLF } = wolfjs;
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
-    targetGroupId: 9969, 
-    minuteInterval: 62 * 1000,
+    targetGroupId: 224, 
+    minuteInterval: 302 * 1000,
     boxInterval: 9 * 60 * 1000
 };
 
