@@ -5,7 +5,7 @@ const { WOLF } = wolfjs;
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
-    targetGroupId: 9969, 
+    targetGroupId: 224, 
     minuteInterval: 62 * 1000,      // دقيقة واحدة لـ (مهام + إيداع)
     boxInterval: 3 * 60 * 1000      // 3 دقائق لـ (فتح صندوق)
 };
@@ -93,7 +93,8 @@ service.on('groupMessage', async (message) => {
         if (answer !== null) {
             const finalResponse = `!${answer}`;
             // تأخير بشري عشوائي
-            const delay = Math.floor(Math.random() * (13000 - 7000 + 1)) + 7000;
+            const delay = 5000; // تأخير 5 ثوانٍ ثابتة
+
             setTimeout(async () => {
                 await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
                 console.log(`✅ تم حل الفخ (${answer})`);
