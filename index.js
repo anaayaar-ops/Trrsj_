@@ -6,7 +6,7 @@ const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
     targetGroupId: 224, 
-    minuteInterval: 60 * 1000,      // دقيقة (مهام + إيداع)
+    minuteInterval: 62 * 1000,      // دقيقة (مهام + إيداع)
     boxInterval: 3 * 60 * 1000      // 3 دقائق (فتح صندوق)
 };
 
