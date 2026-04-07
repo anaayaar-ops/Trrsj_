@@ -5,25 +5,25 @@ const { WOLF } = wolfjs;
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
-    targetGroupId: 224, 
-    minuteInterval: 62 * 1000,      // دقيقة واحدة لـ (مهام + إيداع)
-    boxInterval: 3 * 60 * 1000      // 3 دقائق لـ (فتح صندوق)
+    targetGroupId: 9969, 
+    minuteInterval: 60 * 1000,      // دقيقة (مهام + إيداع)
+    boxInterval: 3 * 60 * 1000      // 3 دقائق (فتح صندوق)
 };
 
 const MY_INFO = {
-    nickname: "🐈‍⬛", // تأكد من مطابقة اسمك في الغرفة (امل 🌟 أو فزاعنا)
+    nickname: "🐈‍⬛", // اسمك البرمجي
     ownerId: "2481425"
 };
 
 const service = new WOLF();
 
-// --- نظام الأوامر التلقائية ---
+// --- 1. الأوامر المجدولة ---
 const sendMinuteCommands = async () => {
     try {
         await service.messaging.sendGroupMessage(settings.targetGroupId, "!مد مهام");
         setTimeout(async () => {
             await service.messaging.sendGroupMessage(settings.targetGroupId, "!مد تحالف ايداع كل");
-        }, 5000);
+        }, 3000); // فاصل بسيط بين الأمرين
     } catch (e) {}
 };
 
@@ -33,7 +33,7 @@ const sendBoxCommand = async () => {
     } catch (e) {}
 };
 
-// --- نظام حل الفخاخ مع المقارنة الذكية ---
+// --- 2. نظام حل الفخاخ الذكي ---
 service.on('groupMessage', async (message) => {
     try {
         if (message.targetGroupId !== settings.targetGroupId || message.subscriberId === service.currentSubscriber.id) return;
@@ -41,8 +41,8 @@ service.on('groupMessage', async (message) => {
         const content = message.body;
         const isTrap = content.includes("لأنك لاعب مجتهد جدًا اليوم") && content.includes("أرسل الإجابة بصيغة تبدأ بـ !");
         
-        // التحقق من اسمك (يدعم اللقبين لضمان الرد)
-        const isForMe = content.includes(MY_INFO.nickname) || content.includes("امل") || content.includes("فزآعنا");
+        // فحص الاسم (يدعم لقبك ولقب امل الذي ظهر في الصور)
+        const isForMe = content.includes(MY_INFO.nickname) || content.includes("امل") || content.includes("🌟");
 
         if (!isTrap || !isForMe) return;
 
@@ -50,19 +50,21 @@ service.on('groupMessage', async (message) => {
         const numToWord = {'1':'واحد','2':'اثنان','3':'ثلاثة','4':'أربعة','5':'خمسة','6':'ستة','7':'سبعة','8':'ثمانية','9':'تسعة','10':'عشرة'};
         const wordToNum = {'واحد':'1','اثنان':'2','ثلاثة':'3','أربعة':'4','خمسة':'5','ستة':'6','سبعة':'7','ثمانية':'8','تسعة':'9','عشرة':'10'};
 
-        // 1. منطق المقارنة (أكبر / أصغر)
-        if (content.includes('أيهما') || content.includes('ايهما')) {
+        console.log(`⚠️ فخ مكتشف.. جاري التحليل...`);
+
+        // أ) الأولوية القصوى: أي سؤال يحتوي على "صح أم خطأ" أو "صح او خطأ"
+        if (content.includes('صح أم خطأ') || content.includes('صح او خطأ') || content.includes('صح أو خطأ')) {
+            answer = "صح"; 
+        } 
+        // ب) المقارنة (أكبر / أصغر)
+        else if (content.includes('أيهما') || content.includes('ايهما')) {
             const nums = content.match(/\d+/g);
             if (nums && nums.length >= 2) {
                 const n1 = parseInt(nums[0]), n2 = parseInt(nums[1]);
-                if (content.includes('أكبر') || content.includes('اكبر')) {
-                    answer = Math.max(n1, n2); // اختيار الرقم الأكبر
-                } else if (content.includes('أصغر') || content.includes('اصغر')) {
-                    answer = Math.min(n1, n2); // اختيار الرقم الأصغر
-                }
+                answer = (content.includes('أكبر') || content.includes('اكبر')) ? Math.max(n1, n2) : Math.min(n1, n2);
             }
         } 
-        // 2. العمليات الحسابية
+        // ج) الحساب (جمع / طرح)
         else if (content.includes('ناتج') || content.includes('؟')) {
             const nums = content.match(/\d+/g);
             if (nums && nums.length >= 2) {
@@ -70,13 +72,11 @@ service.on('groupMessage', async (message) => {
                 answer = (content.includes('-') || content.includes('طرح') || content.includes('ناقص')) ? n1 - n2 : n1 + n2;
             }
         }
-        // 3. أسئلة الصناديق وعضوية المالك
-        else if (content.includes('الصندوق') || content.includes('الصناديق')) {
-            answer = "صح"; 
-        } else if (content.includes('عضوية صاحب البوت')) {
+        // د) عضوية صاحب البوت
+        else if (content.includes('صاحب البوت')) {
             answer = MY_INFO.ownerId;
         }
-        // 4. تحويل الأرقام والكلمات
+        // هـ) تحويل الكلمات والأرقام
         else if (content.includes('بالكلمات') || content.includes('بالحروف')) {
             const match = content.match(/\d+/);
             if (match && numToWord[match[0]]) answer = numToWord[match[0]];
@@ -84,30 +84,34 @@ service.on('groupMessage', async (message) => {
         else if (content.includes('بالأرقام') || content.includes('بالارقام')) {
             for (let word in wordToNum) { if (content.includes(word)) { answer = wordToNum[word]; break; } }
         }
-        // 5. اكتب الكلمة كما هي
-        else if (content.includes('اكتب كلمة') || content.includes('كما هي')) {
-            const match = content.match(/:\s*(\S+)/);
+        // و) اكتب الكلمة كما هي
+        else if (content.includes('اكتب كلمة') || content.includes('اكتب كلمة :') || content.includes('كما هي')) {
+            const match = content.match(/:\s*(\S+)/) || content.match(/هي\s+(\S+)/);
             if (match) answer = match[1];
         }
 
+        // إرسال الإجابة
         if (answer !== null) {
             const finalResponse = `!${answer}`;
-            // تأخير بشري عشوائي
-            const delay = 5000; // تأخير 5 ثوانٍ ثابتة
+            const delay = 5000; // تأخير 5 ثوانٍ ثابتة كما طلبت
 
             setTimeout(async () => {
-                await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
-                console.log(`✅ تم حل الفخ (${answer})`);
+                try {
+                    await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
+                    console.log(`✅ تم الرد بـ: ${finalResponse}`);
+                } catch (err) {}
             }, delay);
         }
     } catch (err) {}
 });
 
-// --- الجدولة والتشغيل ---
+// --- 3. بدء التشغيل ---
 service.on('ready', async () => {
-    console.log(`✅ البوت متصل بنجاح`);
+    console.log(`✅ البوت متصل وجاهز`);
     try {
         await service.group.joinById(settings.targetGroupId);
+        
+        // تنفيذ الأوامر المجدولة
         sendMinuteCommands();
         sendBoxCommand();
         setInterval(sendMinuteCommands, settings.minuteInterval);
