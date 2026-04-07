@@ -2,27 +2,25 @@ import 'dotenv/config';
 import wolfjs from 'wolf.js';
 const { WOLF } = wolfjs;
 
+// --- 1. الإعدادات ---
 const settings = {
     identity: process.env.U_MAIL || 'your_email@example.com',
     secret: process.env.U_PASS || 'your_password',
     targetGroupId: 9969, 
-    minuteInterval: 60 * 1000,      
-    boxInterval: 3 * 60 * 1000      
+    minuteInterval: 60 * 1000,      // دقيقة واحدة
+    boxInterval: 3 * 60 * 1000      // 3 دقائق
 };
 
-/**
- * --- ملاحظة هامة جداً ---
- * انسخ الإيموجي أو الاسم من رسالة البوت في الغرفة مباشرة 
- * وضعه هنا لضمان التطابق 100%
- */
 const MY_INFO = {
-    nickname: "‏​‏ ‏🐈‍⬛ 🌟", 
+    emojiKey: "🐈‍⬛", 
+    starKey: "🌟",
+    excludedName: "فزآعنا",        // يتجنب أي رسالة فيها هذا الاسم
     ownerId: "2481425"
 };
 
 const service = new WOLF();
 
-// --- نظام الأوامر المجدولة ---
+// --- 2. الأوامر التلقائية المجدولة ---
 const sendMinuteCommands = async () => {
     try {
         await service.messaging.sendGroupMessage(settings.targetGroupId, "!مد مهام");
@@ -38,31 +36,36 @@ const sendBoxCommand = async () => {
     } catch (e) {}
 };
 
-// --- نظام حل الفخاخ ---
+// --- 3. نظام حل الفخاخ الذكي ---
 service.on('groupMessage', async (message) => {
     try {
+        // التحقق من المجموعة ومنع البوت من الرد على نفسه
         if (message.targetGroupId !== settings.targetGroupId || message.subscriberId === service.currentSubscriber.id) return;
 
         const content = message.body;
+        const trapTrigger = "لأنك لاعب مجتهد جدًا اليوم";
 
-        // التحقق من وجود جملة الفخ الشهيرة
-        const isTrap = content.includes("لأنك لاعب مجتهد جدًا اليوم");
-        
-        // التحقق من وجود لقبك (سواء كان نصاً أو إيموجي) داخل الرسالة
-        const isForMe = content.includes(MY_INFO.nickname);
+        // أ- التأكد أن الرسالة هي "فخ"
+        if (!content.includes(trapTrigger)) return;
 
-        if (!isTrap || !isForMe) return;
+        // ب- فلتر الاستهداف (يجب وجود القطة والنجمة وعدم وجود كلمة فزآعنا)
+        const isForMe = content.includes(MY_INFO.emojiKey) && 
+                        content.includes(MY_INFO.starKey) && 
+                        !content.includes(MY_INFO.excludedName);
 
-        console.log(`🎯 تم رصد فخ موجه لـ (${MY_INFO.nickname}) .. جاري التحضير للرد`);
+        if (!isForMe) return;
+
+        console.log(`🎯 فخ لك مكتشف! جاري التحليل...`);
 
         let answer = null;
         const numToWord = {'1':'واحد','2':'اثنان','3':'ثلاثة','4':'أربعة','5':'خمسة','6':'ستة','7':'سبعة','8':'ثمانية','9':'تسعة','10':'عشرة'};
         const wordToNum = {'واحد':'1','اثنان':'2','ثلاثة':'3','أربعة':'4','خمسة':'5','ستة':'6','سبعة':'7','ثمانية':'8','تسعة':'9','عشرة':'10'};
 
-        // تحليل الأسئلة (صح أم خطأ / أكبر وأصغر / حساب)
-        if (content.includes('صح أم خطأ') || content.includes('صح أو خطأ') || content.includes('الصندوق')) {
-            answer = "صح"; //
+        // 1. أسئلة صح أم خطأ (التحالف، الصناديق)
+        if (content.includes('صح أم خطأ') || content.includes('صح أو خطأ') || content.includes('التحالف') || content.includes('الصندوق')) {
+            answer = "صح"; 
         } 
+        // 2. المقارنة (أكبر / أصغر)
         else if (content.includes('أيهما') || content.includes('ايهما')) {
             const nums = content.match(/\d+/g);
             if (nums && nums.length >= 2) {
@@ -70,41 +73,57 @@ service.on('groupMessage', async (message) => {
                 answer = (content.includes('أكبر') || content.includes('اكبر')) ? Math.max(n1, n2) : Math.min(n1, n2);
             }
         } 
+        // 3. الحساب (جمع / طرح)
         else if (content.includes('ناتج') || content.includes('؟')) {
             const nums = content.match(/\d+/g);
             if (nums && nums.length >= 2) {
                 const n1 = parseInt(nums[0]), n2 = parseInt(nums[1]);
-                // حل مشكلة الجمع والطرح
-                answer = (content.includes('-') || content.includes('طرح')) ? n1 - n2 : n1 + n2;
+                answer = (content.includes('-') || content.includes('طرح') || content.includes('ناقص')) ? n1 - n2 : n1 + n2;
             }
         }
+        // 4. عضوية صاحب البوت
         else if (content.includes('صاحب البوت')) {
-            answer = MY_INFO.ownerId; //
+            answer = MY_INFO.ownerId;
         }
+        // 5. تحويل الكلمات والأرقام
+        else if (content.includes('بالكلمات') || content.includes('بالحروف')) {
+            const match = content.match(/\d+/);
+            if (match && numToWord[match[0]]) answer = numToWord[match[0]];
+        }
+        else if (content.includes('بالأرقام') || content.includes('بالارقام')) {
+            for (let word in wordToNum) { if (content.includes(word)) { answer = wordToNum[word]; break; } }
+        }
+        // 6. اكتب الكلمة كما هي
         else if (content.includes('اكتب كلمة') || content.includes('كما هي')) {
-            const match = content.match(/:\s*(\S+)/);
-            if (match) answer = match[1]; //
+            const match = content.match(/:\s*(\S+)/) || content.match(/هي\s+(\S+)/);
+            if (match) answer = match[1];
         }
 
+        // إرسال الإجابة بعد 5 ثوانٍ ثابتة
         if (answer !== null) {
             const finalResponse = `!${answer}`;
-            // تأخير 5 ثوانٍ ثابتة
             setTimeout(async () => {
-                await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
-                console.log(`✅ تم الرد بـ: ${finalResponse}`);
+                try {
+                    await service.messaging.sendGroupMessage(settings.targetGroupId, finalResponse);
+                    console.log(`✅ تم الرد بـ: ${finalResponse}`);
+                } catch (err) {}
             }, 5000); 
         }
     } catch (err) {}
 });
 
+// --- 4. بدء التشغيل والجدولة ---
 service.on('ready', async () => {
-    console.log(`✅ البوت يعمل وجاهز لمراقبة فخاخ: ${MY_INFO.nickname}`);
+    console.log(`✅ البوت متصل بنجاح باسم: ${service.currentSubscriber.nickname}`);
     try {
         await service.group.joinById(settings.targetGroupId);
+        
+        // تنفيذ الأوامر المجدولة
         sendMinuteCommands();
         sendBoxCommand();
         setInterval(sendMinuteCommands, settings.minuteInterval);
         setInterval(sendBoxCommand, settings.boxInterval);
+        
     } catch (e) {}
 });
 
