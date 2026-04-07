@@ -16,7 +16,7 @@ const settings = {
  * وضعه هنا لضمان التطابق 100%
  */
 const MY_INFO = {
-    nickname: "‏​‏ ‏🐈‍⬛ 🌟"
+    nickname: "‏​‏ ‏🐈‍⬛ 🌟", 
     ownerId: "2481425"
 };
 
