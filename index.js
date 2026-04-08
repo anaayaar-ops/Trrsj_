@@ -13,7 +13,7 @@ const settings = {
 const MY_INFO = {
     emoji1: "🐈‍⬛", 
     emoji2: "🌟",
-    ignoreKeyword: "فزآعنا",   // يتجاهل أي رسلة تحتوي على هذه الكلمة
+    ignoreKeyword: "فزآعنا",   // يتجاهل أي رسة تحتوي على هذه الكلمة
     ownerId: "2481425"      // إجابةسؤال العضوية
 };
 
